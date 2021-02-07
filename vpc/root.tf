@@ -4,7 +4,8 @@ data "aws_ami" "ubuntu" {
 
     filter {
         name = "name"
-        values = ["ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-*"]
+#        values = ["ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-*"]
+        values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]    
     }
 
     filter {
@@ -17,9 +18,10 @@ data "aws_ami" "ubuntu" {
 
 # VPC Resources
 resource "aws_vpc" "aws_proxy_pattern_vpc" {
-    cidr_block = "${var.cidr_block}"
+    cidr_block = var.cidr_block
+    main_route_table_id = aws_route_table.public_routes.id
 
-    tags {
+    tags = {
         Name = "aws_proxy_pattern_vpc"
     }
     enable_dns_support = true
@@ -27,17 +29,17 @@ resource "aws_vpc" "aws_proxy_pattern_vpc" {
 }
 
 resource "aws_internet_gateway" "igw" {
-    vpc_id = "${aws_vpc.aws_proxy_pattern_vpc.id}"
+    vpc_id = aws_vpc.aws_proxy_pattern_vpc.id
 }
 
 # The proxy will live here, think of it as the DMZ where everything gets
 # internet access if it has a public IP
 resource "aws_subnet" "public_subnet" {
-    vpc_id = "${aws_vpc.aws_proxy_pattern_vpc.id}"
-    cidr_block = "${var.cidr_public_subnet}"
+    vpc_id = aws_vpc.aws_proxy_pattern_vpc.id
+    cidr_block = var.cidr_public_subnet
     map_public_ip_on_launch = true
 
-    tags {
+    tags = {
         Name = "aws_proxy_pattern_public_subnet"
     }
 }
@@ -45,87 +47,87 @@ resource "aws_subnet" "public_subnet" {
 # The private host will live here and default routes traffic out to the public
 # subnet
 resource "aws_subnet" "private_subnet" {
-    vpc_id = "${aws_vpc.aws_proxy_pattern_vpc.id}"
-    cidr_block = "${var.cidr_private_subnet}"
+    vpc_id = aws_vpc.aws_proxy_pattern_vpc.id
+    cidr_block = var.cidr_private_subnet
 
-    tags {
+    tags = {
         Name = "aws_proxy_pattern_private_subnet"
     }
 }
 
 # Route tables for each type of subnet
 resource "aws_route_table" "public_routes" {
-    vpc_id = "${aws_vpc.aws_proxy_pattern_vpc.id}"
+    vpc_id = aws_vpc.aws_proxy_pattern_vpc.id
 
     route {
         cidr_block = "0.0.0.0/0"
-        gateway_id = "${aws_internet_gateway.igw.id}"
+        gateway_id = aws_internet_gateway.igw.id
     }
 
-    tags {
+    tags = {
         Name = "public_routes"
     }
 }
 
 resource "aws_route_table" "private_routes" {
-    vpc_id = "${aws_vpc.aws_proxy_pattern_vpc.id}"
+    vpc_id = aws_vpc.aws_proxy_pattern_vpc.id
 
-    tags {
+    tags = {
         Name = "private_routes"
     }
 }
 
 resource "aws_route" "proxy_route" {
-    route_table_id = "${aws_route_table.private_routes.id}"
+    route_table_id = aws_route_table.private_routes.id
     destination_cidr_block = "0.0.0.0/0"
-    network_interface_id = "${var.proxy_network_interface_id}"
+    network_interface_id = var.proxy_network_interface_id
 }
 
 resource "aws_route_table_association" "public_routes_association" {
-    subnet_id = "${aws_subnet.public_subnet.id}"
-    route_table_id = "${aws_route_table.public_routes.id}"
+    subnet_id = aws_subnet.public_subnet.id
+    route_table_id = aws_route_table.public_routes.id
 }
 
 resource "aws_route_table_association" "private_routes_association" {
-    subnet_id = "${aws_subnet.private_subnet.id}"
-    route_table_id = "${aws_route_table.private_routes.id}"
+    subnet_id = aws_subnet.private_subnet.id
+    route_table_id = aws_route_table.private_routes.id
 }
 
 # The example host instance
 resource "aws_instance" "host" {
-    ami = "${data.aws_ami.ubuntu.id}"
+    ami = data.aws_ami.ubuntu.id
     instance_type = "t2.micro"
-    subnet_id = "${aws_subnet.private_subnet.id}"
+    subnet_id = aws_subnet.private_subnet.id
 
-    key_name = "${var.key_pair_name}"
+    key_name = var.key_pair_name
 
-    tags {
+    tags = {
         Name = "aws_proxy_pattern_host"
     }
 }
 
 # A host that will enable us to SSH to the private host for testing
 resource "aws_instance" "management_host" {
-    ami = "${data.aws_ami.ubuntu.id}"
+    ami = data.aws_ami.ubuntu.id
     instance_type = "t2.micro"
-    subnet_id = "${aws_subnet.public_subnet.id}"
+    subnet_id = aws_subnet.public_subnet.id
 
-    key_name = "${var.key_pair_name}"
+    key_name = var.key_pair_name
 
-    tags {
+    tags = {
         Name = "aws_proxy_pattern_management_host"
     }
 }
 
 output "public_subnet_id" {
-    value = "${aws_subnet.public_subnet.id}"
+    value = aws_subnet.public_subnet.id
 }
 
 output "host_private_ip" {
-    value = "${aws_instance.host.private_ip}"
+    value = aws_instance.host.private_ip
 }
 
 output "management_public_ip" {
-    value = "${aws_instance.management_host.public_ip}"
+    value = aws_instance.management_host.public_ip
 }
 

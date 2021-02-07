@@ -6,6 +6,6 @@ variable "key_pair_name" {}
 
 # AWS instance type to use for proxy
 variable "proxy_instance_type" {
-    type = "string"
+    type = string
     default = "t2.micro"
 }

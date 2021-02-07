@@ -1,4 +1,6 @@
 *.swp
 *.tfstate*
 .terraform/
-terraform.tfvars
+.terraform.lock.hcl
+terraforadfasdsm.tfvars
+add_key.sh
