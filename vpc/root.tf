@@ -19,8 +19,7 @@ data "aws_ami" "ubuntu" {
 # VPC Resources
 resource "aws_vpc" "aws_proxy_pattern_vpc" {
     cidr_block = var.cidr_block
-    main_route_table_id = aws_route_table.public_routes.id
-
+    
     tags = {
         Name = "aws_proxy_pattern_vpc"
     }
